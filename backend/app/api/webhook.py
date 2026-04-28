@@ -3,13 +3,14 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 
 from app.db.clickhouse import get_clickhouse_client
 from app.db.postgres import AsyncSessionLocal
 from app.models.postgres.user import User
+from app.services.n8n import notify_new_lead
 
 router = APIRouter(tags=["webhook"])
 
@@ -72,7 +73,11 @@ def _insert_lead(
 
 
 @router.post("/webhook/{webhook_token}", status_code=status.HTTP_200_OK)
-async def receive_lead(webhook_token: str, payload: WebhookPayload):
+async def receive_lead(
+    webhook_token: str,
+    payload: WebhookPayload,
+    background_tasks: BackgroundTasks,
+):
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(User).where(User.webhook_token == webhook_token))
         user = result.scalar_one_or_none()
@@ -85,5 +90,15 @@ async def receive_lead(webhook_token: str, payload: WebhookPayload):
 
     lead_id = uuid.uuid4()
     await asyncio.to_thread(_insert_lead, lead_id, user.id, payload)
+
+    background_tasks.add_task(
+        notify_new_lead,
+        lead_id=str(lead_id),
+        user_id=str(user.id),
+        name=payload.name,
+        contact=payload.contact,
+        utm_source=payload.utm_source,
+        utm_campaign=payload.utm_campaign,
+    )
 
     return {"status": "ok", "lead_id": str(lead_id)}

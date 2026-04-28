@@ -1,0 +1,7 @@
+<clickhouse>
+    <profiles>
+        <default>
+            <add_http_cors_header>1</add_http_cors_header>
+        </default>
+    </profiles>
+</clickhouse>

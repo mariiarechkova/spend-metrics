@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
 
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+
     n8n_webhook_url: str = "http://n8n:5678/webhook"
     n8n_api_key: str = ""
 
